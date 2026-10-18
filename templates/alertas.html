@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between mb-3">
+    <h3 class="text-danger">⚠️ Alertas de Stock Bajo</h3>
+    <a href="/menu" class="btn btn-outline-light">Volver al Menú</a>
+</div>
+{% if productos %}
+<div class="alert alert-danger">
+    <ul class="mb-0 fs-5">
+        {% for p in productos %}
+        <li><strong>{{ p['nombre'] }}</strong>: Quedan {{ p['cantidad'] }} unidades (Mínimo: {{ p['stock_minimo'] }})</li>
+        {% endfor %}
+    </ul>
+</div>
+{% else %}
+<div class="alert alert-success">¡Todo en orden! No hay productos con stock bajo.</div>
+{% endif %}
+{% endblock %}

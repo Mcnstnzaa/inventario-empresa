@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header fs-4 text-warning">💰 Registrar Venta</div>
+            <div class="card-body">
+                <form method="POST" action="/accion">
+                    <input type="hidden" name="tipo" value="venta">
+                    
+                    <label class="form-label text-warning">1. Selecciona la Categoría</label>
+                    <select id="cat_venta" class="form-select mb-3" onchange="filtrarProductos('venta')">
+                        <option value="" disabled selected>-- Elige Categoría --</option>
+                        <option value="Gorros">Gorros</option>
+                        <option value="Mochilas">Mochilas</option>
+                        <option value="Bolsos">Bolsos</option>
+                        <option value="Accesorios">Accesorios</option>
+                        <option value="Billeteras">Billeteras</option>
+                        <option value="Otros">Otros</option>
+                    </select>
+
+                    <label class="form-label text-warning">2. Selecciona el Producto</label>
+                    <select name="producto_id" id="prod_venta" class="form-select mb-3" required disabled>
+                        <option value="" disabled selected>-- Primero elige una categoría --</option>
+                        {% for p in productos %}
+                        <option value="{{ p['id'] }}" data-categoria="{{ p['categoria'] }}">{{ p['nombre'] }} (Stock: {{ p['cantidad'] }})</option>
+                        {% endfor %}
+                    </select>
+
+                    <label class="form-label text-warning">3. Cantidad vendida</label>
+                    <input type="number" name="cantidad" class="form-control mb-4" min="1" required>
+                    
+                    <button type="submit" class="btn btn-warning w-100 mb-2">Restar del Stock</button>
+                    <a href="/menu" class="btn btn-outline-secondary w-100">Cancelar</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function filtrarProductos(tipo) {
+    var catSeleccionada = document.getElementById('cat_' + tipo).value;
+    var selectProductos = document.getElementById('prod_' + tipo);
+    
+    selectProductos.innerHTML = '<option value="" disabled selected>-- Elige Producto --</option>';
+    selectProductos.disabled = false;
+    
+    var opcionesOriginales = selectProductos.getAttribute('data-opciones');
+    if(!opcionesOriginales) {
+        var opciones = '';
+        {% for p in productos %}
+        opciones += '<option value="{{ p['id'] }}" data-categoria="{{ p['categoria'] }}">{{ p['nombre'] }} (Stock: {{ p['cantidad'] }})</option>';
+        {% endfor %}
+        selectProductos.setAttribute('data-opciones', opciones);
+        opcionesOriginales = opciones;
+    }
+    
+    var tempDiv = document.createElement('div');
+    tempDiv.innerHTML = opcionesOriginales;
+    var opcionesFiltradas = tempDiv.querySelectorAll('option[data-categoria="' + catSeleccionada + '"]');
+    
+    if(opcionesFiltradas.length === 0) {
+        selectProductos.innerHTML = '<option value="" disabled selected>-- No hay productos en esta categoría --</option>';
+    } else {
+        opcionesFiltradas.forEach(function(opcion) {
+            selectProductos.appendChild(opcion.cloneNode(true));
+        });
+    }
+}
+</script>
+{% endblock %}

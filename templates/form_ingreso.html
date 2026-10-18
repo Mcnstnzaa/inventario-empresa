@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header fs-4 text-success">📦 Registrar Ingreso de Mercadería</div>
+            <div class="card-body">
+                <form method="POST" action="/accion">
+                    <input type="hidden" name="tipo" value="ingreso">
+                    
+                    <label class="form-label text-warning">1. Selecciona la Categoría</label>
+                    <select id="cat_ingreso" class="form-select mb-3" onchange="filtrarProductos('ingreso')">
+                        <option value="" disabled selected>-- Elige Categoría --</option>
+                        <option value="Gorros">Gorros</option>
+                        <option value="Mochilas">Mochilas</option>
+                        <option value="Bolsos">Bolsos</option>
+                        <option value="Accesorios">Accesorios</option>
+                        <option value="Billeteras">Billeteras</option>
+                        <option value="Otros">Otros</option>
+                    </select>
+
+                    <label class="form-label text-warning">2. Selecciona el Producto</label>
+                    <select name="producto_id" id="prod_ingreso" class="form-select mb-3" required disabled>
+                        <option value="" disabled selected>-- Primero elige una categoría --</option>
+                        {% for p in productos %}
+                        <option value="{{ p['id'] }}" data-categoria="{{ p['categoria'] }}">{{ p['nombre'] }} (Stock: {{ p['cantidad'] }})</option>
+                        {% endfor %}
+                    </select>
+
+                    <label class="form-label text-warning">3. Cantidad que ingresó</label>
+                    <input type="number" name="cantidad" class="form-control mb-4" min="1" required>
+                    
+                    <button type="submit" class="btn btn-success w-100 mb-2">Sumar al Stock</button>
+                    <a href="/menu" class="btn btn-outline-secondary w-100">Cancelar</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function filtrarProductos(tipo) {
+    var catSeleccionada = document.getElementById('cat_' + tipo).value;
+    var selectProductos = document.getElementById('prod_' + tipo);
+    
+    // Limpiamos la lista de productos
+    selectProductos.innerHTML = '<option value="" disabled selected>-- Elige Producto --</option>';
+    selectProductos.disabled = false;
+    
+    // Recorremos todos los productos y agregamos solo los de la categoría elegida
+    var opcionesOriginales = selectProductos.getAttribute('data-opciones');
+    if(!opcionesOriginales) {
+        // Guardamos las opciones originales la primera vez
+        var opciones = '';
+        {% for p in productos %}
+        opciones += '<option value="{{ p['id'] }}" data-categoria="{{ p['categoria'] }}">{{ p['nombre'] }} (Stock: {{ p['cantidad'] }})</option>';
+        {% endfor %}
+        selectProductos.setAttribute('data-opciones', opciones);
+        opcionesOriginales = opciones;
+    }
+    
+    var tempDiv = document.createElement('div');
+    tempDiv.innerHTML = opcionesOriginales;
+    var opcionesFiltradas = tempDiv.querySelectorAll('option[data-categoria="' + catSeleccionada + '"]');
+    
+    if(opcionesFiltradas.length === 0) {
+        selectProductos.innerHTML = '<option value="" disabled selected>-- No hay productos en esta categoría --</option>';
+    } else {
+        opcionesFiltradas.forEach(function(opcion) {
+            selectProductos.appendChild(opcion.cloneNode(true));
+        });
+    }
+}
+</script>
+{% endblock %}

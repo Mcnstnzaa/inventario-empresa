@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="text-center mt-5">
+    <h2 class="text-warning mb-4">Menú Principal - {{ session['rol'] | upper }}</h2>
+    <div class="row justify-content-center gap-3">
+        
+        {% if session['rol'] == 'admin' %}
+            <!-- BOTONES DEL ADMIN -->
+            <div class="col-md-3">
+                <a href="/alertas" class="btn btn-danger w-100 py-4 fs-5">⚠️ Ver Alertas</a>
+            </div>
+            <div class="col-md-3">
+                <a href="/stock" class="btn btn-gold w-100 py-4 fs-5">📋 Ver Stock</a>
+            </div>
+        {% endif %}
+
+        <!-- BOTONES COMPARTIDOS -->
+        <div class="col-md-3">
+            <a href="/form_ingreso" class="btn btn-success w-100 py-4 fs-5">📦 Ingresar Mercadería</a>
+        </div>
+        <div class="col-md-3">
+            <a href="/form_venta" class="btn btn-warning w-100 py-4 fs-5">💰 Registrar Venta</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

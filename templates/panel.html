@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row">
+    <!-- COLUMNA IZQUIERDA: FORMULARIOS -->
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">📦 Registrar Ingreso (Llegó mercadería)</div>
+            <div class="card-body">
+                <form method="POST" action="/accion">
+                    <input type="hidden" name="tipo" value="ingreso">
+                    <select name="producto_id" class="form-select mb-2" required>
+                        <option value="" disabled selected>-- Producto --</option>
+                        {% for p in productos %}
+                        <option value="{{ p['id'] }}">{{ p['nombre'] }} ({{ p['cantidad'] }})</option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" name="cantidad" class="form-control mb-2" placeholder="Cantidad" min="1" required>
+                    <button type="submit" class="btn btn-success w-100">Sumar Stock</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">💰 Registrar Venta (Salió mercadería)</div>
+            <div class="card-body">
+                <form method="POST" action="/accion">
+                    <input type="hidden" name="tipo" value="venta">
+                    <select name="producto_id" class="form-select mb-2" required>
+                        <option value="" disabled selected>-- Producto --</option>
+                        {% for p in productos %}
+                        <option value="{{ p['id'] }}">{{ p['nombre'] }} ({{ p['cantidad'] }})</option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" name="cantidad" class="form-control mb-2" placeholder="Cantidad" min="1" required>
+                    <button type="submit" class="btn btn-warning w-100">Restar Stock</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- SOLO EL ADMIN VE ESTO -->
+        {% if session['rol'] == 'admin' %}
+        <div class="card">
+            <div class="card-header">➕ Crear Producto Nuevo</div>
+            <div class="card-body">
+                <form method="POST" action="/crear_producto">
+                    <input type="text" name="nombre" class="form-control mb-2" placeholder="Nombre" required>
+                    <input type="text" name="categoria" class="form-control mb-2" placeholder="Categoría">
+                    <input type="number" name="cantidad" class="form-control mb-2" placeholder="Cantidad inicial" required>
+                    <input type="number" name="stock_minimo" class="form-control mb-2" placeholder="Stock Mínimo" value="4" required>
+                    <input type="number" step="0.01" name="precio" class="form-control mb-2" placeholder="Precio" required>
+                    <button type="submit" class="btn btn-gold w-100">Guardar Producto</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- COLUMNA DERECHA: TABLA -->
+    <div class="col-md-8">
+        {% if alertas and session['rol'] == 'admin' %}
+        <div class="alert alert-danger">
+            <h5>⚠️ ALERTAS DE STOCK BAJO</h5>
+            <ul class="mb-0">
+                {% for a in alertas %}
+                <li><strong>{{ a['nombre'] }}</strong>: Quedan {{ a['cantidad'] }} (Mínimo: {{ a['stock_minimo'] }})</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>📋 Lista de Inventario</span>
+                {% if session['rol'] == 'admin' %}
+                <a href="/exportar_excel" class="btn btn-sm btn-gold">📥 Excel</a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Cat.</th>
+                            <th>Cant.</th>
+                            {% if session['rol'] == 'admin' %}
+                            <th>Mín.</th>
+                            <th>Precio</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in productos %}
+                        <tr class="{% if p['cantidad'] <= p['stock_minimo'] %}table-danger{% endif %}">
+                            <td>{{ p['nombre'] }}</td>
+                            <td>{{ p['categoria'] }}</td>
+                            <td class="fw-bold">{{ p['cantidad'] }}</td>
+                            {% if session['rol'] == 'admin' %}
+                            <td>{{ p['stock_minimo'] }}</td>
+                            <td>${{ p['precio'] }}</td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

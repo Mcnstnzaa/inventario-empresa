@@ -100,7 +100,7 @@ def alertas():
     conn.close()
     return render_template('alertas.html', productos=productos)
 
-# --- FORMULARIOS DE ACCIÓN (Con fecha de hoy por defecto) ---
+# --- FORMULARIOS DE ACCIÓN ---
 @app.route('/form_ingreso')
 def form_ingreso():
     if 'user_id' not in session:
@@ -121,7 +121,7 @@ def form_venta():
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     return render_template('form_venta.html', productos=productos, fecha_hoy=fecha_hoy)
 
-# --- PROCESAR ACCIONES (Ventas e Ingresos con Fecha y Método de Pago) ---
+# --- PROCESAR ACCIONES ---
 @app.route('/accion', methods=['POST'])
 def accion():
     if 'user_id' not in session:
@@ -303,7 +303,7 @@ def exportar_excel():
     output.seek(0)
     return send_file(output, download_name=f"inventario_{datetime.now().strftime('%Y%m%d')}.xlsx", as_attachment=True)
 
-# --- HISTORIAL DE VENTAS POR FECHAS (Nuevo) ---
+# --- HISTORIAL DE VENTAS POR FECHAS ---
 @app.route('/historial_ventas')
 def historial_ventas():
     if session.get('rol') != 'admin':

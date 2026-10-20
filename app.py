@@ -292,6 +292,54 @@ def exportar_excel():
     wb.save(output)
     output.seek(0)
     return send_file(output, download_name=f"inventario_{datetime.now().strftime('%Y%m%d')}.xlsx", as_attachment=True)
+# --- HISTORIAL DE VENTAS (Nuevo) ---
+@app.route('/historial_ventas')
+def historial_ventas():
+    if session.get('rol') != 'admin':
+        return redirect(url_for('menu'))
+    
+    conn = get_db()
+    # Buscamos solo los productos que tengan la palabra "Pago:" en su fecha
+    ventas = conn.execute("SELECT * FROM productos WHERE fecha_actualizacion LIKE '%Pago:%' ORDER BY fecha_actualizacion DESC").fetchall()
+    conn.close()
+    return render_template('historial_ventas.html', ventas=ventas)
 
+@app.route('/descargar_ventas_fechas', methods=['POST'])
+def descargar_ventas_fechas():
+    if session.get('rol') != 'admin':
+        return redirect(url_for('menu'))
+        
+    fecha_inicio = request.form['fecha_inicio']
+    fecha_fin = request.form['fecha_fin']
+    
+    conn = get_db()
+    # Filtramos por el rango de fechas
+    ventas = conn.execute("SELECT * FROM productos WHERE fecha_actualizacion LIKE '%Pago:%' AND fecha_actualizacion >= ? AND fecha_actualizacion <= ? ORDER BY fecha_actualizacion DESC", 
+                          (fecha_inicio, fecha_fin + " 23:59")).fetchall()
+    conn.close()
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Historial de Ventas"
+    headers = ["Producto", "Categoría", "Precio", "Detalle de Fecha y Pago"]
+    
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="000000")
+        
+    for row_idx, p in enumerate(ventas, 2):
+        ws.cell(row=row_idx, column=1, value=p['nombre'])
+        ws.cell(row=row_idx, column=2, value=p['categoria'])
+        ws.cell(row=row_idx, column=3, value=p['precio'])
+        ws.cell(row=row_idx, column=4, value=p['fecha_actualizacion'])
+        
+    for i, w in enumerate([30, 20, 15, 40], 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return send_file(output, download_name=f"ventas_{fecha_inicio}_a_{fecha_fin}.xlsx", as_attachment=True)
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

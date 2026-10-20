@@ -100,14 +100,13 @@ def alertas():
     conn.close()
     return render_template('alertas.html', productos=productos)
 
-# --- FORMULARIOS DE ACCIÓN (Categorías dinámicas desde la BD) ---
+# --- FORMULARIOS DE ACCIÓN (Categorías dinámicas) ---
 @app.route('/form_ingreso')
 def form_ingreso():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     conn = get_db()
     productos = conn.execute("SELECT * FROM productos ORDER BY nombre").fetchall()
-    # Obtenemos las categorías reales que existen en la base de datos
     categorias = [row['categoria'] for row in conn.execute("SELECT DISTINCT categoria FROM productos WHERE categoria IS NOT NULL AND categoria != '' ORDER BY categoria").fetchall()]
     conn.close()
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
@@ -119,13 +118,12 @@ def form_venta():
         return redirect(url_for('login'))
     conn = get_db()
     productos = conn.execute("SELECT * FROM productos ORDER BY nombre").fetchall()
-    # Obtenemos las categorías reales
     categorias = [row['categoria'] for row in conn.execute("SELECT DISTINCT categoria FROM productos WHERE categoria IS NOT NULL AND categoria != '' ORDER BY categoria").fetchall()]
     conn.close()
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     return render_template('form_venta.html', productos=productos, categorias=categorias, fecha_hoy=fecha_hoy)
 
-# --- PROCESAR ACCIONES (Ingreso y Venta con Fecha y Método de Pago) ---
+# --- PROCESAR ACCIONES (Ingreso y Venta con Precio, Cantidad y Pago) ---
 @app.route('/accion', methods=['POST'])
 def accion():
     if 'user_id' not in session:
@@ -136,6 +134,7 @@ def accion():
     tipo = request.form['tipo']
     fecha_formulario = request.form.get('fecha_accion')
     metodo_pago = request.form.get('metodo_pago', '')
+    precio_venta = request.form.get('precio_venta')
     
     conn = get_db()
     p = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
@@ -154,7 +153,12 @@ def accion():
             hora_actual = datetime.now().strftime("%H:%M")
             
             if tipo == 'venta':
-                fecha_completa = f"{fecha} {hora_actual} | Pago: {metodo_pago}"
+                # Guardamos la cantidad vendida y el precio final en el texto de la fecha para el historial
+                precio_final = float(precio_venta) if precio_venta else p['precio']
+                fecha_completa = f"{fecha} {hora_actual} | Cant: {cantidad} | Precio: ${precio_final} | Pago: {metodo_pago}"
+                
+                # Actualizamos el precio base del producto si el vendedor lo cambió
+                conn.execute("UPDATE productos SET precio = ? WHERE id = ?", (precio_final, producto_id))
             else:
                 fecha_completa = f"{fecha} {hora_actual} | Ingreso"
             
@@ -278,7 +282,7 @@ def exportar_excel():
     
     wb = openpyxl.Workbook()
     ws = wb.active
-    headers = ["ID", "Nombre", "Categoría", "Cantidad", "Stock Mínimo", "Precio", "Fecha / Pago"]
+    headers = ["ID", "Nombre", "Categoría", "Cantidad", "Stock Mínimo", "Precio", "Fecha / Detalle"]
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=h)
         cell.font = Font(bold=True, color="FFFFFF")
@@ -325,7 +329,7 @@ def descargar_ventas_fechas():
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Historial de Ventas"
-    headers = ["Producto", "Categoría", "Precio", "Detalle de Fecha y Pago"]
+    headers = ["Producto", "Categoría", "Detalle de la Venta (Cantidad, Precio y Pago)"]
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=h)
         cell.font = Font(bold=True, color="FFFFFF")
@@ -334,10 +338,9 @@ def descargar_ventas_fechas():
     for row_idx, p in enumerate(ventas, 2):
         ws.cell(row=row_idx, column=1, value=p['nombre'])
         ws.cell(row=row_idx, column=2, value=p['categoria'])
-        ws.cell(row=row_idx, column=3, value=p['precio'])
-        ws.cell(row=row_idx, column=4, value=p['fecha_actualizacion'])
+        ws.cell(row=row_idx, column=3, value=p['fecha_actualizacion'])
         
-    for i, w in enumerate([30, 20, 15, 40], 1):
+    for i, w in enumerate([30, 20, 60], 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 
     output = io.BytesIO()

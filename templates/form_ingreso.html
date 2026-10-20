@@ -8,6 +8,10 @@
                 <form method="POST" action="/accion">
                     <input type="hidden" name="tipo" value="ingreso">
                     
+                    <!-- AQUI ESTA LA FECHA -->
+                    <label class="form-label text-warning">Fecha del Ingreso</label>
+                    <input type="date" name="fecha_accion" class="form-control mb-3" value="{{ fecha_hoy }}" required>
+
                     <label class="form-label text-warning">1. Selecciona la Categoría</label>
                     <select id="cat_ingreso" class="form-select mb-3" onchange="filtrarProductos('ingreso')">
                         <option value="" disabled selected>-- Elige Categoría --</option>
@@ -16,7 +20,6 @@
                         <option value="Bolsos">Bolsos</option>
                         <option value="Accesorios">Accesorios</option>
                         <option value="Billeteras">Billeteras</option>
-                        <option value="Otros">Otros</option>
                     </select>
 
                     <label class="form-label text-warning">2. Selecciona el Producto</label>
@@ -42,15 +45,10 @@
 function filtrarProductos(tipo) {
     var catSeleccionada = document.getElementById('cat_' + tipo).value;
     var selectProductos = document.getElementById('prod_' + tipo);
-    
-    // Limpiamos la lista de productos
     selectProductos.innerHTML = '<option value="" disabled selected>-- Elige Producto --</option>';
     selectProductos.disabled = false;
-    
-    // Recorremos todos los productos y agregamos solo los de la categoría elegida
     var opcionesOriginales = selectProductos.getAttribute('data-opciones');
     if(!opcionesOriginales) {
-        // Guardamos las opciones originales la primera vez
         var opciones = '';
         {% for p in productos %}
         opciones += '<option value="{{ p['id'] }}" data-categoria="{{ p['categoria'] }}">{{ p['nombre'] }} (Stock: {{ p['cantidad'] }})</option>';
@@ -58,13 +56,11 @@ function filtrarProductos(tipo) {
         selectProductos.setAttribute('data-opciones', opciones);
         opcionesOriginales = opciones;
     }
-    
     var tempDiv = document.createElement('div');
     tempDiv.innerHTML = opcionesOriginales;
     var opcionesFiltradas = tempDiv.querySelectorAll('option[data-categoria="' + catSeleccionada + '"]');
-    
     if(opcionesFiltradas.length === 0) {
-        selectProductos.innerHTML = '<option value="" disabled selected>-- No hay productos en esta categoría --</option>';
+        selectProductos.innerHTML = '<option value="" disabled selected>-- No hay productos --</option>';
     } else {
         opcionesFiltradas.forEach(function(opcion) {
             selectProductos.appendChild(opcion.cloneNode(true));

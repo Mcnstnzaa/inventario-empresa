@@ -17,24 +17,32 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+# --- FUNCIÓN DE ALERTA POR CORREO ---
 def enviar_alerta_correo(nombre_producto, cantidad_actual, stock_minimo):
+    # ⚠️ RECUERDA CAMBIAR ESTOS DATOS POR LOS TUYOS ⚠️
     remitente = "tu_correo@gmail.com"       
-    password = "abcd efgh ijkl mnop"        
+    password = "abcd efgh ijkl mnop"        # Contraseña de aplicación de Gmail (16 letras)
     destinatario = "tu_correo@gmail.com"    
+    
     asunto = f"⚠️ ALERTA DE STOCK BAJO: {nombre_producto}"
     cuerpo = f"El producto '{nombre_producto}' ha alcanzado el nivel mínimo.\nQuedan solo: {cantidad_actual} unidades.\nMínimo configurado: {stock_minimo}."
+    
     msg = MIMEText(cuerpo)
     msg['Subject'] = asunto
     msg['From'] = remitente
     msg['To'] = destinatario
+    
     try:
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
         server.login(remitente, password)
         server.send_message(msg)
         server.quit()
+        print(">>> CORREO ENVIADO <<<")
     except Exception as e:
         print(f">>> ERROR CORREO: {e} <<<")
+
+# ================= RUTAS =================
 
 @app.route('/')
 def index():
@@ -50,6 +58,7 @@ def login():
         conn = get_db()
         user = conn.execute("SELECT * FROM usuarios WHERE username = ?", (username,)).fetchone()
         conn.close()
+        
         if user and check_password_hash(user['password'], password):
             session['user_id'] = user['id']
             session['username'] = user['username']
@@ -64,12 +73,14 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+# --- MENÚ PRINCIPAL ---
 @app.route('/menu')
 def menu():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     return render_template('menu.html')
 
+# --- VISTA DE STOCK (Admin) ---
 @app.route('/stock')
 def stock():
     if session.get('rol') != 'admin':
@@ -79,6 +90,7 @@ def stock():
     conn.close()
     return render_template('stock.html', productos=productos)
 
+# --- VISTA DE ALERTAS (Admin) ---
 @app.route('/alertas')
 def alertas():
     if session.get('rol') != 'admin':
@@ -88,6 +100,7 @@ def alertas():
     conn.close()
     return render_template('alertas.html', productos=productos)
 
+# --- FORMULARIOS DE ACCIÓN (Categorías dinámicas) ---
 @app.route('/form_ingreso')
 def form_ingreso():
     if 'user_id' not in session:
@@ -110,25 +123,31 @@ def form_venta():
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     return render_template('form_venta.html', productos=productos, categorias=categorias, fecha_hoy=fecha_hoy)
 
+# --- PROCESAR ACCIONES (Ingreso y Venta con Precio, Cantidad y Pago) ---
 @app.route('/accion', methods=['POST'])
 def accion():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
     try:
-        producto_id = request.form['producto_id']
-        cantidad = int(request.form['cantidad'])
-        tipo = request.form['tipo']
+        producto_id = request.form.get('producto_id')
+        cantidad = request.form.get('cantidad')
+        tipo = request.form.get('tipo')
         fecha_formulario = request.form.get('fecha_accion')
         metodo_pago = request.form.get('metodo_pago', '')
         precio_venta = request.form.get('precio_venta')
         
+        if not producto_id or not cantidad:
+            flash('Error: Faltan datos del producto o la cantidad.', 'danger')
+            return redirect(url_for('menu'))
+
+        cantidad = int(cantidad)
         conn = get_db()
         p = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
         
         if p:
             if tipo == 'venta' and p['cantidad'] < cantidad:
-                flash(f'Error: Solo hay {p["cantidad"]} en stock.', 'danger')
+                flash(f'Error: No puedes vender {cantidad}. Solo hay {p["cantidad"]} en stock.', 'danger')
             else:
                 nueva_cantidad = p['cantidad'] + cantidad if tipo == 'ingreso' else p['cantidad'] - cantidad
                 
@@ -151,26 +170,35 @@ def accion():
                 conn.commit()
                 
                 if nueva_cantidad <= p['stock_minimo']:
-                    enviar_alerta_correo(p['nombre'], nueva_cantidad, p['stock_minimo'])
+                    try:
+                        enviar_alerta_correo(p['nombre'], nueva_cantidad, p['stock_minimo'])
+                    except Exception:
+                        pass
                     flash(f'¡{tipo.capitalize()} registrado! ⚠️ Stock bajo.', 'warning')
                 else:
                     flash(f'¡{tipo.capitalize()} registrado con éxito!', 'success')
+        else:
+            flash('Error: Producto no encontrado.', 'danger')
+            
         conn.close()
     except Exception as e:
-        flash(f'Error al procesar: {str(e)}', 'danger')
+        flash(f'Error en el sistema: {str(e)}', 'danger')
         
     return redirect(url_for('menu'))
 
+# --- CREAR PRODUCTO (Admin) ---
 @app.route('/crear_producto', methods=['POST'])
 def crear_producto():
     if session.get('rol') != 'admin':
         return redirect(url_for('login'))
+    
     nombre = request.form['nombre']
     categoria = request.form['categoria']
     cantidad = int(request.form['cantidad'])
     stock_minimo = int(request.form['stock_minimo'])
     precio = float(request.form['precio'])
     fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+    
     conn = get_db()
     conn.execute("INSERT INTO productos (nombre, categoria, cantidad, stock_minimo, precio, fecha_actualizacion) VALUES (?, ?, ?, ?, ?, ?)",
                  (nombre, categoria, cantidad, stock_minimo, precio, fecha))
@@ -179,15 +207,18 @@ def crear_producto():
     flash('Producto creado con éxito', 'success')
     return redirect(url_for('stock'))
 
+# --- EDITAR PRODUCTO (Admin) ---
 @app.route('/editar_producto', methods=['POST'])
 def editar_producto():
     if session.get('rol') != 'admin':
         return redirect(url_for('login'))
+    
     id_prod = request.form['id_producto']
     nombre = request.form['nombre']
     categoria = request.form['categoria']
     stock_minimo = int(request.form['stock_minimo'])
     precio = float(request.form['precio'])
+    
     conn = get_db()
     conn.execute("UPDATE productos SET nombre=?, categoria=?, stock_minimo=?, precio=? WHERE id=?",
                  (nombre, categoria, stock_minimo, precio, id_prod))
@@ -196,6 +227,7 @@ def editar_producto():
     flash('Producto actualizado con éxito', 'success')
     return redirect(url_for('stock'))
 
+# --- ELIMINAR PRODUCTO (Admin) ---
 @app.route('/eliminar_producto/<int:id>')
 def eliminar_producto(id):
     if session.get('rol') != 'admin':
@@ -207,6 +239,7 @@ def eliminar_producto(id):
     flash('Producto eliminado', 'success')
     return redirect(url_for('stock'))
 
+# --- GESTIÓN DE USUARIOS (Admin) ---
 @app.route('/usuarios')
 def usuarios():
     if session.get('rol') != 'admin':
@@ -249,6 +282,7 @@ def eliminar_usuario(id):
     conn.close()
     return redirect(url_for('usuarios'))
 
+# --- EXPORTAR EXCEL COMPLETO ---
 @app.route('/exportar_excel')
 def exportar_excel():
     if session.get('rol') != 'admin':
@@ -256,6 +290,7 @@ def exportar_excel():
     conn = get_db()
     productos = conn.execute("SELECT * FROM productos ORDER BY nombre").fetchall()
     conn.close()
+    
     wb = openpyxl.Workbook()
     ws = wb.active
     headers = ["ID", "Nombre", "Categoría", "Cantidad", "Stock Mínimo", "Precio", "Fecha / Detalle"]
@@ -263,6 +298,7 @@ def exportar_excel():
         cell = ws.cell(row=1, column=col, value=h)
         cell.font = Font(bold=True, color="FFFFFF")
         cell.fill = PatternFill("solid", fgColor="000000")
+        
     for row_idx, p in enumerate(productos, 2):
         ws.cell(row=row_idx, column=1, value=p['id'])
         ws.cell(row=row_idx, column=2, value=p['nombre'])
@@ -274,11 +310,13 @@ def exportar_excel():
         if p['cantidad'] <= p['stock_minimo']:
             for c in range(1, 8):
                 ws.cell(row=row_idx, column=c).fill = PatternFill("solid", fgColor="FFD700")
+
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
     return send_file(output, download_name=f"inventario_{datetime.now().strftime('%Y%m%d')}.xlsx", as_attachment=True)
 
+# --- HISTORIAL DE VENTAS POR FECHAS ---
 @app.route('/historial_ventas')
 def historial_ventas():
     if session.get('rol') != 'admin':
@@ -298,19 +336,24 @@ def descargar_ventas_fechas():
     ventas = conn.execute("SELECT * FROM productos WHERE fecha_actualizacion LIKE '%Pago:%' AND fecha_actualizacion >= ? AND fecha_actualizacion <= ? ORDER BY fecha_actualizacion DESC", 
                           (fecha_inicio, fecha_fin + " 23:59")).fetchall()
     conn.close()
+    
     wb = openpyxl.Workbook()
     ws = wb.active
+    ws.title = "Historial de Ventas"
     headers = ["Producto", "Categoría", "Detalle de la Venta (Cantidad, Precio y Pago)"]
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=h)
         cell.font = Font(bold=True, color="FFFFFF")
         cell.fill = PatternFill("solid", fgColor="000000")
+        
     for row_idx, p in enumerate(ventas, 2):
         ws.cell(row=row_idx, column=1, value=p['nombre'])
         ws.cell(row=row_idx, column=2, value=p['categoria'])
         ws.cell(row=row_idx, column=3, value=p['fecha_actualizacion'])
+        
     for i, w in enumerate([30, 20, 60], 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)

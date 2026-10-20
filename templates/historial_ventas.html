@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between mb-3">
+    <h3 class="text-warning">📊 Historial de Ventas</h3>
+    <a href="/menu" class="btn btn-outline-light">Volver al Menú</a>
+</div>
+
+<div class="row">
+    <!-- Panel para descargar por fechas -->
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header text-warning">📥 Descargar Reporte por Fechas</div>
+            <div class="card-body">
+                <form method="POST" action="/descargar_ventas_fechas">
+                    <label class="form-label">Desde:</label>
+                    <input type="date" name="fecha_inicio" class="form-control mb-2" required>
+                    
+                    <label class="form-label">Hasta:</label>
+                    <input type="date" name="fecha_fin" class="form-control mb-3" required>
+                    
+                    <button type="submit" class="btn btn-gold w-100">Descargar Excel</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de ventas recientes -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">🧾 Últimas Ventas Registradas</div>
+            <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Precio</th>
+                            <th>Fecha y Pago</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in ventas %}
+                        <tr>
+                            <td>{{ v['nombre'] }}</td>
+                            <td>${{ v['precio'] }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ v['fecha_actualizacion'] }}</span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No hay ventas registradas aún.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

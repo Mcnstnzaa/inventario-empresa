@@ -100,16 +100,18 @@ def alertas():
     conn.close()
     return render_template('alertas.html', productos=productos)
 
-# --- FORMULARIOS DE ACCIÓN ---
+# --- FORMULARIOS DE ACCIÓN (Categorías dinámicas desde la BD) ---
 @app.route('/form_ingreso')
 def form_ingreso():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     conn = get_db()
     productos = conn.execute("SELECT * FROM productos ORDER BY nombre").fetchall()
+    # Obtenemos las categorías reales que existen en la base de datos
+    categorias = [row['categoria'] for row in conn.execute("SELECT DISTINCT categoria FROM productos WHERE categoria IS NOT NULL AND categoria != '' ORDER BY categoria").fetchall()]
     conn.close()
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
-    return render_template('form_ingreso.html', productos=productos, fecha_hoy=fecha_hoy)
+    return render_template('form_ingreso.html', productos=productos, categorias=categorias, fecha_hoy=fecha_hoy)
 
 @app.route('/form_venta')
 def form_venta():
@@ -117,11 +119,13 @@ def form_venta():
         return redirect(url_for('login'))
     conn = get_db()
     productos = conn.execute("SELECT * FROM productos ORDER BY nombre").fetchall()
+    # Obtenemos las categorías reales
+    categorias = [row['categoria'] for row in conn.execute("SELECT DISTINCT categoria FROM productos WHERE categoria IS NOT NULL AND categoria != '' ORDER BY categoria").fetchall()]
     conn.close()
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
-    return render_template('form_venta.html', productos=productos, fecha_hoy=fecha_hoy)
+    return render_template('form_venta.html', productos=productos, categorias=categorias, fecha_hoy=fecha_hoy)
 
-# --- PROCESAR ACCIONES ---
+# --- PROCESAR ACCIONES (Ingreso y Venta con Fecha y Método de Pago) ---
 @app.route('/accion', methods=['POST'])
 def accion():
     if 'user_id' not in session:
@@ -131,6 +135,7 @@ def accion():
     cantidad = int(request.form['cantidad'])
     tipo = request.form['tipo']
     fecha_formulario = request.form.get('fecha_accion')
+    metodo_pago = request.form.get('metodo_pago', '')
     
     conn = get_db()
     p = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
@@ -148,7 +153,6 @@ def accion():
                 
             hora_actual = datetime.now().strftime("%H:%M")
             
-            metodo_pago = request.form.get('metodo_pago', '')
             if tipo == 'venta':
                 fecha_completa = f"{fecha} {hora_actual} | Pago: {metodo_pago}"
             else:
@@ -225,7 +229,6 @@ def eliminar_producto(id):
 def usuarios():
     if session.get('rol') != 'admin':
         return redirect(url_for('menu'))
-    
     conn = get_db()
     lista_usuarios = conn.execute("SELECT * FROM usuarios ORDER BY id").fetchall()
     conn.close()
@@ -235,13 +238,10 @@ def usuarios():
 def crear_usuario():
     if session.get('rol') != 'admin':
         return redirect(url_for('menu'))
-    
     username = request.form['username'].strip().lower()
     password = request.form['password']
-    
     conn = get_db()
     existe = conn.execute("SELECT * FROM usuarios WHERE username = ?", (username,)).fetchone()
-    
     if existe:
         flash(f'El usuario "{username}" ya existe. Prueba con otro.', 'danger')
     else:
@@ -249,7 +249,6 @@ def crear_usuario():
                      (username, generate_password_hash(password), 'trabajador'))
         conn.commit()
         flash(f'¡Usuario "{username}" creado con éxito!', 'success')
-        
     conn.close()
     return redirect(url_for('usuarios'))
 
@@ -257,7 +256,6 @@ def crear_usuario():
 def eliminar_usuario(id):
     if session.get('rol') != 'admin':
         return redirect(url_for('menu'))
-        
     conn = get_db()
     user = conn.execute("SELECT * FROM usuarios WHERE id = ?", (id,)).fetchone()
     if user and user['rol'] != 'admin':
@@ -308,7 +306,6 @@ def exportar_excel():
 def historial_ventas():
     if session.get('rol') != 'admin':
         return redirect(url_for('menu'))
-    
     conn = get_db()
     ventas = conn.execute("SELECT * FROM productos WHERE fecha_actualizacion LIKE '%Pago:%' ORDER BY fecha_actualizacion DESC").fetchall()
     conn.close()
@@ -318,10 +315,8 @@ def historial_ventas():
 def descargar_ventas_fechas():
     if session.get('rol') != 'admin':
         return redirect(url_for('menu'))
-        
     fecha_inicio = request.form['fecha_inicio']
     fecha_fin = request.form['fecha_fin']
-    
     conn = get_db()
     ventas = conn.execute("SELECT * FROM productos WHERE fecha_actualizacion LIKE '%Pago:%' AND fecha_actualizacion >= ? AND fecha_actualizacion <= ? ORDER BY fecha_actualizacion DESC", 
                           (fecha_inicio, fecha_fin + " 23:59")).fetchall()
@@ -331,7 +326,6 @@ def descargar_ventas_fechas():
     ws = wb.active
     ws.title = "Historial de Ventas"
     headers = ["Producto", "Categoría", "Precio", "Detalle de Fecha y Pago"]
-    
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=h)
         cell.font = Font(bold=True, color="FFFFFF")

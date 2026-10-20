@@ -8,6 +8,10 @@
                 <form method="POST" action="/accion">
                     <input type="hidden" name="tipo" value="venta">
                     
+                    <!-- AQUI ESTA LA FECHA -->
+                    <label class="form-label text-warning">Fecha de la Venta</label>
+                    <input type="date" name="fecha_accion" class="form-control mb-3" value="{{ fecha_hoy }}" required>
+
                     <label class="form-label text-warning">1. Selecciona la Categoría</label>
                     <select id="cat_venta" class="form-select mb-3" onchange="filtrarProductos('venta')">
                         <option value="" disabled selected>-- Elige Categoría --</option>
@@ -29,7 +33,6 @@
                     <label class="form-label text-warning">3. Cantidad vendida</label>
                     <input type="number" name="cantidad" class="form-control mb-3" min="1" required>
 
-                    <!-- SELECTOR DE MÉTODO DE PAGO -->
                     <label class="form-label text-warning">4. Método de Pago</label>
                     <select name="metodo_pago" class="form-select mb-4" required>
                         <option value="Efectivo">Efectivo</option>
@@ -50,10 +53,8 @@
 function filtrarProductos(tipo) {
     var catSeleccionada = document.getElementById('cat_' + tipo).value;
     var selectProductos = document.getElementById('prod_' + tipo);
-    
     selectProductos.innerHTML = '<option value="" disabled selected>-- Elige Producto --</option>';
     selectProductos.disabled = false;
-    
     var opcionesOriginales = selectProductos.getAttribute('data-opciones');
     if(!opcionesOriginales) {
         var opciones = '';
@@ -63,11 +64,9 @@ function filtrarProductos(tipo) {
         selectProductos.setAttribute('data-opciones', opciones);
         opcionesOriginales = opciones;
     }
-    
     var tempDiv = document.createElement('div');
     tempDiv.innerHTML = opcionesOriginales;
     var opcionesFiltradas = tempDiv.querySelectorAll('option[data-categoria="' + catSeleccionada + '"]');
-    
     if(opcionesFiltradas.length === 0) {
         selectProductos.innerHTML = '<option value="" disabled selected>-- No hay productos --</option>';
     } else {

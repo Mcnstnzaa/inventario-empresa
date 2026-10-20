@@ -137,13 +137,19 @@ def accion():
         else:
             nueva_cantidad = p['cantidad'] + cantidad if tipo == 'ingreso' else p['cantidad'] - cantidad
             fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+            
+            # Si es venta, guardamos el método de pago en la fecha (para no modificar la base de datos entera)
+            metodo_pago = request.form.get('metodo_pago', '')
+            if tipo == 'venta':
+                fecha = f"{fecha} | Pago: {metodo_pago}"
+            
             conn.execute("UPDATE productos SET cantidad = ?, fecha_actualizacion = ? WHERE id = ?",
                          (nueva_cantidad, fecha, producto_id))
             conn.commit()
             
             if nueva_cantidad <= p['stock_minimo']:
                 enviar_alerta_correo(p['nombre'], nueva_cantidad, p['stock_minimo'])
-                flash(f'¡{tipo.capitalize()} registrado! ⚠️ Stock bajo. Aviso enviado al admin.', 'warning')
+                flash(f'¡{tipo.capitalize()} registrado! ⚠️ Stock bajo. Aviso enviado.', 'warning')
             else:
                 flash(f'¡{tipo.capitalize()} registrado con éxito!', 'success')
             

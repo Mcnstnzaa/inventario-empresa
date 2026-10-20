@@ -19,9 +19,8 @@ def get_db():
 
 # --- FUNCIÓN DE ALERTA POR CORREO ---
 def enviar_alerta_correo(nombre_producto, cantidad_actual, stock_minimo):
-    # ⚠️ RECUERDA CAMBIAR ESTOS DATOS POR LOS TUYOS ⚠️
     remitente = "tu_correo@gmail.com"       
-    password = "abcd efgh ijkl mnop"        # Contraseña de aplicación de Gmail (16 letras)
+    password = "abcd efgh ijkl mnop"        
     destinatario = "tu_correo@gmail.com"    
     
     asunto = f"⚠️ ALERTA DE STOCK BAJO: {nombre_producto}"
@@ -73,14 +72,12 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# --- MENÚ PRINCIPAL ---
 @app.route('/menu')
 def menu():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     return render_template('menu.html')
 
-# --- VISTA DE STOCK (Admin) ---
 @app.route('/stock')
 def stock():
     if session.get('rol') != 'admin':
@@ -90,7 +87,6 @@ def stock():
     conn.close()
     return render_template('stock.html', productos=productos)
 
-# --- VISTA DE ALERTAS (Admin) ---
 @app.route('/alertas')
 def alertas():
     if session.get('rol') != 'admin':
@@ -100,7 +96,6 @@ def alertas():
     conn.close()
     return render_template('alertas.html', productos=productos)
 
-# --- FORMULARIOS DE ACCIÓN (Categorías dinámicas) ---
 @app.route('/form_ingreso')
 def form_ingreso():
     if 'user_id' not in session:
@@ -123,7 +118,6 @@ def form_venta():
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     return render_template('form_venta.html', productos=productos, categorias=categorias, fecha_hoy=fecha_hoy)
 
-# --- PROCESAR ACCIONES (Ingreso y Venta con Precio, Cantidad y Pago) ---
 @app.route('/accion', methods=['POST'])
 def accion():
     if 'user_id' not in session:
@@ -169,14 +163,14 @@ def accion():
                              (nueva_cantidad, fecha_completa, producto_id))
                 conn.commit()
                 
-                if nueva_cantidad <= p['stock_minimo']:
-                    try:
-                        enviar_alerta_correo(p['nombre'], nueva_cantidad, p['stock_minimo'])
-                    except Exception:
-                        pass
-                    flash(f'¡{tipo.capitalize()} registrado! ⚠️ Stock bajo.', 'warning')
-                else:
-                    flash(f'¡{tipo.capitalize()} registrado con éxito!', 'success')
+                # El envío de correo está desactivado temporalmente para evitar el "Worker Timeout"
+                # if nueva_cantidad <= p['stock_minimo']:
+                #     enviar_alerta_correo(p['nombre'], nueva_cantidad, p['stock_minimo'])
+                #     flash(f'¡{tipo.capitalize()} registrado! ⚠️ Stock bajo.', 'warning')
+                # else:
+                #     flash(f'¡{tipo.capitalize()} registrado con éxito!', 'success')
+
+                flash(f'¡{tipo.capitalize()} registrado con éxito!', 'success')
         else:
             flash('Error: Producto no encontrado.', 'danger')
             
@@ -186,12 +180,10 @@ def accion():
         
     return redirect(url_for('menu'))
 
-# --- CREAR PRODUCTO (Admin) ---
 @app.route('/crear_producto', methods=['POST'])
 def crear_producto():
     if session.get('rol') != 'admin':
         return redirect(url_for('login'))
-    
     nombre = request.form['nombre']
     categoria = request.form['categoria']
     cantidad = int(request.form['cantidad'])
@@ -207,12 +199,10 @@ def crear_producto():
     flash('Producto creado con éxito', 'success')
     return redirect(url_for('stock'))
 
-# --- EDITAR PRODUCTO (Admin) ---
 @app.route('/editar_producto', methods=['POST'])
 def editar_producto():
     if session.get('rol') != 'admin':
         return redirect(url_for('login'))
-    
     id_prod = request.form['id_producto']
     nombre = request.form['nombre']
     categoria = request.form['categoria']
@@ -227,7 +217,6 @@ def editar_producto():
     flash('Producto actualizado con éxito', 'success')
     return redirect(url_for('stock'))
 
-# --- ELIMINAR PRODUCTO (Admin) ---
 @app.route('/eliminar_producto/<int:id>')
 def eliminar_producto(id):
     if session.get('rol') != 'admin':
@@ -239,7 +228,6 @@ def eliminar_producto(id):
     flash('Producto eliminado', 'success')
     return redirect(url_for('stock'))
 
-# --- GESTIÓN DE USUARIOS (Admin) ---
 @app.route('/usuarios')
 def usuarios():
     if session.get('rol') != 'admin':
@@ -282,7 +270,6 @@ def eliminar_usuario(id):
     conn.close()
     return redirect(url_for('usuarios'))
 
-# --- EXPORTAR EXCEL COMPLETO ---
 @app.route('/exportar_excel')
 def exportar_excel():
     if session.get('rol') != 'admin':
@@ -316,7 +303,6 @@ def exportar_excel():
     output.seek(0)
     return send_file(output, download_name=f"inventario_{datetime.now().strftime('%Y%m%d')}.xlsx", as_attachment=True)
 
-# --- HISTORIAL DE VENTAS POR FECHAS ---
 @app.route('/historial_ventas')
 def historial_ventas():
     if session.get('rol') != 'admin':

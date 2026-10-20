@@ -100,7 +100,7 @@ def alertas():
     conn.close()
     return render_template('alertas.html', productos=productos)
 
-# --- FORMULARIOS DE ACCIÓN ---
+# --- FORMULARIOS DE ACCIÓN (Con fecha de hoy por defecto) ---
 @app.route('/form_ingreso')
 def form_ingreso():
     if 'user_id' not in session:
@@ -108,7 +108,8 @@ def form_ingreso():
     conn = get_db()
     productos = conn.execute("SELECT * FROM productos ORDER BY nombre").fetchall()
     conn.close()
-    return render_template('form_ingreso.html', productos=productos)
+    fecha_hoy = datetime.now().strftime('%Y-%m-%d')
+    return render_template('form_ingreso.html', productos=productos, fecha_hoy=fecha_hoy)
 
 @app.route('/form_venta')
 def form_venta():
@@ -117,9 +118,10 @@ def form_venta():
     conn = get_db()
     productos = conn.execute("SELECT * FROM productos ORDER BY nombre").fetchall()
     conn.close()
-    return render_template('form_venta.html', productos=productos)
+    fecha_hoy = datetime.now().strftime('%Y-%m-%d')
+    return render_template('form_venta.html', productos=productos, fecha_hoy=fecha_hoy)
 
-# --- PROCESAR ACCIONES (Ingreso y Venta con Método de Pago) ---
+# --- PROCESAR ACCIONES (Ventas e Ingresos con Fecha y Método de Pago) ---
 @app.route('/accion', methods=['POST'])
 def accion():
     if 'user_id' not in session:
@@ -128,6 +130,7 @@ def accion():
     producto_id = request.form['producto_id']
     cantidad = int(request.form['cantidad'])
     tipo = request.form['tipo']
+    fecha_formulario = request.form.get('fecha_accion')
     
     conn = get_db()
     p = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
@@ -137,15 +140,22 @@ def accion():
             flash(f'Error: Solo hay {p["cantidad"]} en stock.', 'danger')
         else:
             nueva_cantidad = p['cantidad'] + cantidad if tipo == 'ingreso' else p['cantidad'] - cantidad
-            fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
             
-            # Si es venta, guardamos el método de pago en la fecha
+            if fecha_formulario:
+                fecha = datetime.strptime(fecha_formulario, '%Y-%m-%d').strftime("%Y-%m-%d")
+            else:
+                fecha = datetime.now().strftime("%Y-%m-%d")
+                
+            hora_actual = datetime.now().strftime("%H:%M")
+            
             metodo_pago = request.form.get('metodo_pago', '')
             if tipo == 'venta':
-                fecha = f"{fecha} | Pago: {metodo_pago}"
+                fecha_completa = f"{fecha} {hora_actual} | Pago: {metodo_pago}"
+            else:
+                fecha_completa = f"{fecha} {hora_actual} | Ingreso"
             
             conn.execute("UPDATE productos SET cantidad = ?, fecha_actualizacion = ? WHERE id = ?",
-                         (nueva_cantidad, fecha, producto_id))
+                         (nueva_cantidad, fecha_completa, producto_id))
             conn.commit()
             
             if nueva_cantidad <= p['stock_minimo']:
@@ -259,7 +269,7 @@ def eliminar_usuario(id):
     conn.close()
     return redirect(url_for('usuarios'))
 
-# --- EXPORTAR EXCEL ---
+# --- EXPORTAR EXCEL COMPLETO ---
 @app.route('/exportar_excel')
 def exportar_excel():
     if session.get('rol') != 'admin':
@@ -292,14 +302,14 @@ def exportar_excel():
     wb.save(output)
     output.seek(0)
     return send_file(output, download_name=f"inventario_{datetime.now().strftime('%Y%m%d')}.xlsx", as_attachment=True)
-# --- HISTORIAL DE VENTAS (Nuevo) ---
+
+# --- HISTORIAL DE VENTAS POR FECHAS (Nuevo) ---
 @app.route('/historial_ventas')
 def historial_ventas():
     if session.get('rol') != 'admin':
         return redirect(url_for('menu'))
     
     conn = get_db()
-    # Buscamos solo los productos que tengan la palabra "Pago:" en su fecha
     ventas = conn.execute("SELECT * FROM productos WHERE fecha_actualizacion LIKE '%Pago:%' ORDER BY fecha_actualizacion DESC").fetchall()
     conn.close()
     return render_template('historial_ventas.html', ventas=ventas)
@@ -313,7 +323,6 @@ def descargar_ventas_fechas():
     fecha_fin = request.form['fecha_fin']
     
     conn = get_db()
-    # Filtramos por el rango de fechas
     ventas = conn.execute("SELECT * FROM productos WHERE fecha_actualizacion LIKE '%Pago:%' AND fecha_actualizacion >= ? AND fecha_actualizacion <= ? ORDER BY fecha_actualizacion DESC", 
                           (fecha_inicio, fecha_fin + " 23:59")).fetchall()
     conn.close()
@@ -341,5 +350,6 @@ def descargar_ventas_fechas():
     wb.save(output)
     output.seek(0)
     return send_file(output, download_name=f"ventas_{fecha_inicio}_a_{fecha_fin}.xlsx", as_attachment=True)
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

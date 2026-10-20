@@ -9,19 +9,18 @@
     <div class="card-body">
         <h5 class="text-warning mb-3">➕ Crear Producto Nuevo</h5>
         <form method="POST" action="/crear_producto" class="row g-2">
-            <div class="col-md-3"><input type="text" name="nombre" class="form-control" placeholder="Nombre del producto" required></div>
+            <div class="col-md-3"><input type="text" name="nombre" class="form-control" placeholder="Nombre" required></div>
             
-            <!-- AQUI ESTA EL MENU DESPLEGABLE DE CATEGORIAS -->
+            <!-- AQUI PUEDES ESCRIBIR UNA CATEGORIA NUEVA O ELEGIR UNA EXISTENTE -->
             <div class="col-md-2">
-                <select name="categoria" class="form-select" required>
-                    <option value="" disabled selected>Categoría...</option>
-                    <option value="Gorros">Gorros</option>
-                    <option value="Mochilas">Mochilas</option>
-                    <option value="Bolsos">Bolsos</option>
-                    <option value="Accesorios">Accesorios</option>
-                    <option value="Billeteras">Billeteras</option>
-                    <option value="Otros">Otros</option>
-                </select>
+                <input type="text" name="categoria" class="form-control" list="lista-categorias" placeholder="Categoría..." required>
+                <datalist id="lista-categorias">
+                    <option value="Gorros"></option>
+                    <option value="Mochilas"></option>
+                    <option value="Bolsos"></option>
+                    <option value="Accesorios"></option>
+                    <option value="Billeteras"></option>
+                </datalist>
             </div>
             
             <div class="col-md-1"><input type="number" name="cantidad" class="form-control" placeholder="Cant." required></div>
@@ -32,19 +31,17 @@
     </div>
 </div>
 
-<!-- FILTRO DE CATEGORIAS -->
 <div class="d-flex justify-content-between align-items-center mb-2 mt-4">
     <h5 class="text-light mb-0">Lista de Inventario</h5>
     <div class="d-flex align-items-center gap-2">
-        <label class="text-warning fw-bold">Filtrar por categoría:</label>
+        <label class="text-warning fw-bold">Filtrar:</label>
         <select id="filtroCategoria" class="form-select form-select-sm" style="width: 200px;" onchange="filtrarTabla()">
-            <option value="Todas">Todas las categorías</option>
+            <option value="Todas">Todas</option>
             <option value="Gorros">Gorros</option>
             <option value="Mochilas">Mochilas</option>
             <option value="Bolsos">Bolsos</option>
             <option value="Accesorios">Accesorios</option>
             <option value="Billeteras">Billeteras</option>
-            <option value="Otros">Otros</option>
         </select>
     </div>
 </div>
@@ -52,7 +49,7 @@
 <div class="card">
     <div class="card-body">
         <table class="table table-striped table-hover" id="tablaInventario">
-            <thead><tr><th>Nombre</th><th>Categoría</th><th>Cant.</th><th>Mín.</th><th>Precio</th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Categoría</th><th>Cant.</th><th>Mín.</th><th>Precio</th><th>Acciones</th></tr></thead>
             <tbody>
                 {% for p in productos %}
                 <tr class="{% if p['cantidad'] <= p['stock_minimo'] %}table-danger{% endif %}">
@@ -61,6 +58,39 @@
                     <td class="fw-bold">{{ p['cantidad'] }}</td>
                     <td>{{ p['stock_minimo'] }}</td>
                     <td>${{ p['precio'] }}</td>
+                    <td>
+                        <!-- Botón para abrir ventana de editar -->
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editModal{{ p['id'] }}">Editar</button>
+                        <a href="/eliminar_producto/{{ p['id'] }}" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar producto?')">X</a>
+
+                        <!-- Ventana flotante de Edición -->
+                        <div class="modal fade" id="editModal{{ p['id'] }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content bg-dark text-light border-warning">
+                                    <div class="modal-header border-warning">
+                                        <h5 class="modal-title text-warning">Editar Producto</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <form method="POST" action="/editar_producto">
+                                        <div class="modal-body">
+                                            <input type="hidden" name="id_producto" value="{{ p['id'] }}">
+                                            <label class="form-label">Nombre</label>
+                                            <input type="text" name="nombre" class="form-control mb-2" value="{{ p['nombre'] }}" required>
+                                            <label class="form-label">Categoría</label>
+                                            <input type="text" name="categoria" class="form-control mb-2" value="{{ p['categoria'] }}" required>
+                                            <label class="form-label">Stock Mínimo</label>
+                                            <input type="number" name="stock_minimo" class="form-control mb-2" value="{{ p['stock_minimo'] }}" required>
+                                            <label class="form-label">Precio</label>
+                                            <input type="number" step="0.01" name="precio" class="form-control mb-2" value="{{ p['precio'] }}" required>
+                                        </div>
+                                        <div class="modal-footer border-warning">
+                                            <button type="submit" class="btn btn-gold">Guardar Cambios</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -69,7 +99,6 @@
     </div>
 </div>
 
-<!-- SCRIPT PARA EL FILTRO (Javascript) -->
 <script>
 function filtrarTabla() {
     var filtro = document.getElementById("filtroCategoria").value.toLowerCase();

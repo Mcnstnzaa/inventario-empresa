@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between mb-3">
+    <h3 class="text-warning">👥 Gestión de Usuarios</h3>
+    <a href="/menu" class="btn btn-outline-light">Volver al Menú</a>
+</div>
+
+<div class="row">
+    <!-- Formulario para crear usuario -->
+    <div class="col-md-5">
+        <div class="card mb-3">
+            <div class="card-header">➕ Crear Nuevo Trabajador</div>
+            <div class="card-body">
+                <form method="POST" action="/crear_usuario">
+                    <label class="form-label text-warning">Nombre de Usuario</label>
+                    <input type="text" name="username" class="form-control mb-3" placeholder="Ej: juan_perez" required>
+                    
+                    <label class="form-label text-warning">Contraseña</label>
+                    <input type="text" name="password" class="form-control mb-4" placeholder="Contraseña de acceso" required>
+                    
+                    <button type="submit" class="btn btn-gold w-100">Crear Usuario</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de usuarios -->
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header">📋 Usuarios Registrados</div>
+            <div class="card-body">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Usuario</th>
+                            <th>Rol</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in usuarios %}
+                        <tr>
+                            <td>{{ u['id'] }}</td>
+                            <td class="fw-bold">{{ u['username'] }}</td>
+                            <td>
+                                {% if u['rol'] == 'admin' %}
+                                    <span class="badge bg-warning text-dark">Admin</span>
+                                {% else %}
+                                    <span class="badge bg-success">Trabajador</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if u['rol'] != 'admin' %}
+                                <a href="/eliminar_usuario/{{ u['id'] }}" class="btn btn-sm btn-danger" onclick="return confirm('¿Seguro que quieres eliminar a este trabajador?')">Eliminar</a>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

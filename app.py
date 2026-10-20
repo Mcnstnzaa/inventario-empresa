@@ -204,6 +204,55 @@ def exportar_excel():
     wb.save(output)
     output.seek(0)
     return send_file(output, download_name=f"inventario_{datetime.now().strftime('%Y%m%d')}.xlsx", as_attachment=True)
+    # --- GESTIÓN DE USUARIOS (Solo Admin) ---
+@app.route('/usuarios')
+def usuarios():
+    if session.get('rol') != 'admin':
+        return redirect(url_for('menu'))
+    
+    conn = get_db()
+    lista_usuarios = conn.execute("SELECT * FROM usuarios ORDER BY id").fetchall()
+    conn.close()
+    return render_template('usuarios.html', usuarios=lista_usuarios)
 
+@app.route('/crear_usuario', methods=['POST'])
+def crear_usuario():
+    if session.get('rol') != 'admin':
+        return redirect(url_for('menu'))
+    
+    username = request.form['username'].strip().lower()
+    password = request.form['password']
+    
+    conn = get_db()
+    # Verificar si el usuario ya existe
+    existe = conn.execute("SELECT * FROM usuarios WHERE username = ?", (username,)).fetchone()
+    
+    if existe:
+        flash(f'El usuario "{username}" ya existe. Prueba con otro.', 'danger')
+    else:
+        conn.execute("INSERT INTO usuarios (username, password, rol) VALUES (?, ?, ?)",
+                     (username, generate_password_hash(password), 'trabajador'))
+        conn.commit()
+        flash(f'¡Usuario "{username}" creado con éxito!', 'success')
+        
+    conn.close()
+    return redirect(url_for('usuarios'))
+
+@app.route('/eliminar_usuario/<int:id>')
+def eliminar_usuario(id):
+    if session.get('rol') != 'admin':
+        return redirect(url_for('menu'))
+        
+    conn = get_db()
+    # Evitar que el admin se borre a sí mismo
+    user = conn.execute("SELECT * FROM usuarios WHERE id = ?", (id,)).fetchone()
+    if user and user['rol'] != 'admin':
+        conn.execute("DELETE FROM usuarios WHERE id = ?", (id,))
+        conn.commit()
+        flash('Usuario eliminado correctamente', 'success')
+    else:
+        flash('No puedes eliminar a un administrador', 'danger')
+    conn.close()
+    return redirect(url_for('usuarios'))
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

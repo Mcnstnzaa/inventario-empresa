@@ -17,10 +17,11 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+# --- FUNCIÓN DE ALERTA POR CORREO ---
 def enviar_alerta_correo(nombre_producto, cantidad_actual, stock_minimo):
-    # ⚠️ CONFIGURA TU CORREO AQUÍ ⚠️
+    # ⚠️ RECUERDA CAMBIAR ESTOS DATOS POR LOS TUYOS ⚠️
     remitente = "tu_correo@gmail.com"       
-    password = "abcd efgh ijkl mnop"        # Contraseña de aplicación de Gmail
+    password = "abcd efgh ijkl mnop"        # Contraseña de aplicación de Gmail (16 letras)
     destinatario = "tu_correo@gmail.com"    
     
     asunto = f"⚠️ ALERTA DE STOCK BAJO: {nombre_producto}"
@@ -118,7 +119,7 @@ def form_venta():
     conn.close()
     return render_template('form_venta.html', productos=productos)
 
-# --- PROCESAR ACCIONES ---
+# --- PROCESAR ACCIONES (Ingreso y Venta con Método de Pago) ---
 @app.route('/accion', methods=['POST'])
 def accion():
     if 'user_id' not in session:
@@ -138,7 +139,7 @@ def accion():
             nueva_cantidad = p['cantidad'] + cantidad if tipo == 'ingreso' else p['cantidad'] - cantidad
             fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
             
-            # Si es venta, guardamos el método de pago en la fecha (para no modificar la base de datos entera)
+            # Si es venta, guardamos el método de pago en la fecha
             metodo_pago = request.form.get('metodo_pago', '')
             if tipo == 'venta':
                 fecha = f"{fecha} | Pago: {metodo_pago}"
@@ -177,6 +178,87 @@ def crear_producto():
     flash('Producto creado con éxito', 'success')
     return redirect(url_for('stock'))
 
+# --- EDITAR PRODUCTO (Admin) ---
+@app.route('/editar_producto', methods=['POST'])
+def editar_producto():
+    if session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+    
+    id_prod = request.form['id_producto']
+    nombre = request.form['nombre']
+    categoria = request.form['categoria']
+    stock_minimo = int(request.form['stock_minimo'])
+    precio = float(request.form['precio'])
+    
+    conn = get_db()
+    conn.execute("UPDATE productos SET nombre=?, categoria=?, stock_minimo=?, precio=? WHERE id=?",
+                 (nombre, categoria, stock_minimo, precio, id_prod))
+    conn.commit()
+    conn.close()
+    flash('Producto actualizado con éxito', 'success')
+    return redirect(url_for('stock'))
+
+# --- ELIMINAR PRODUCTO (Admin) ---
+@app.route('/eliminar_producto/<int:id>')
+def eliminar_producto(id):
+    if session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+    conn = get_db()
+    conn.execute("DELETE FROM productos WHERE id=?", (id,))
+    conn.commit()
+    conn.close()
+    flash('Producto eliminado', 'success')
+    return redirect(url_for('stock'))
+
+# --- GESTIÓN DE USUARIOS (Admin) ---
+@app.route('/usuarios')
+def usuarios():
+    if session.get('rol') != 'admin':
+        return redirect(url_for('menu'))
+    
+    conn = get_db()
+    lista_usuarios = conn.execute("SELECT * FROM usuarios ORDER BY id").fetchall()
+    conn.close()
+    return render_template('usuarios.html', usuarios=lista_usuarios)
+
+@app.route('/crear_usuario', methods=['POST'])
+def crear_usuario():
+    if session.get('rol') != 'admin':
+        return redirect(url_for('menu'))
+    
+    username = request.form['username'].strip().lower()
+    password = request.form['password']
+    
+    conn = get_db()
+    existe = conn.execute("SELECT * FROM usuarios WHERE username = ?", (username,)).fetchone()
+    
+    if existe:
+        flash(f'El usuario "{username}" ya existe. Prueba con otro.', 'danger')
+    else:
+        conn.execute("INSERT INTO usuarios (username, password, rol) VALUES (?, ?, ?)",
+                     (username, generate_password_hash(password), 'trabajador'))
+        conn.commit()
+        flash(f'¡Usuario "{username}" creado con éxito!', 'success')
+        
+    conn.close()
+    return redirect(url_for('usuarios'))
+
+@app.route('/eliminar_usuario/<int:id>')
+def eliminar_usuario(id):
+    if session.get('rol') != 'admin':
+        return redirect(url_for('menu'))
+        
+    conn = get_db()
+    user = conn.execute("SELECT * FROM usuarios WHERE id = ?", (id,)).fetchone()
+    if user and user['rol'] != 'admin':
+        conn.execute("DELETE FROM usuarios WHERE id = ?", (id,))
+        conn.commit()
+        flash('Usuario eliminado correctamente', 'success')
+    else:
+        flash('No puedes eliminar a un administrador', 'danger')
+    conn.close()
+    return redirect(url_for('usuarios'))
+
 # --- EXPORTAR EXCEL ---
 @app.route('/exportar_excel')
 def exportar_excel():
@@ -188,7 +270,7 @@ def exportar_excel():
     
     wb = openpyxl.Workbook()
     ws = wb.active
-    headers = ["ID", "Nombre", "Categoría", "Cantidad", "Stock Mínimo", "Precio", "Fecha"]
+    headers = ["ID", "Nombre", "Categoría", "Cantidad", "Stock Mínimo", "Precio", "Fecha / Pago"]
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=h)
         cell.font = Font(bold=True, color="FFFFFF")
@@ -210,55 +292,6 @@ def exportar_excel():
     wb.save(output)
     output.seek(0)
     return send_file(output, download_name=f"inventario_{datetime.now().strftime('%Y%m%d')}.xlsx", as_attachment=True)
-    # --- GESTIÓN DE USUARIOS (Solo Admin) ---
-@app.route('/usuarios')
-def usuarios():
-    if session.get('rol') != 'admin':
-        return redirect(url_for('menu'))
-    
-    conn = get_db()
-    lista_usuarios = conn.execute("SELECT * FROM usuarios ORDER BY id").fetchall()
-    conn.close()
-    return render_template('usuarios.html', usuarios=lista_usuarios)
 
-@app.route('/crear_usuario', methods=['POST'])
-def crear_usuario():
-    if session.get('rol') != 'admin':
-        return redirect(url_for('menu'))
-    
-    username = request.form['username'].strip().lower()
-    password = request.form['password']
-    
-    conn = get_db()
-    # Verificar si el usuario ya existe
-    existe = conn.execute("SELECT * FROM usuarios WHERE username = ?", (username,)).fetchone()
-    
-    if existe:
-        flash(f'El usuario "{username}" ya existe. Prueba con otro.', 'danger')
-    else:
-        conn.execute("INSERT INTO usuarios (username, password, rol) VALUES (?, ?, ?)",
-                     (username, generate_password_hash(password), 'trabajador'))
-        conn.commit()
-        flash(f'¡Usuario "{username}" creado con éxito!', 'success')
-        
-    conn.close()
-    return redirect(url_for('usuarios'))
-
-@app.route('/eliminar_usuario/<int:id>')
-def eliminar_usuario(id):
-    if session.get('rol') != 'admin':
-        return redirect(url_for('menu'))
-        
-    conn = get_db()
-    # Evitar que el admin se borre a sí mismo
-    user = conn.execute("SELECT * FROM usuarios WHERE id = ?", (id,)).fetchone()
-    if user and user['rol'] != 'admin':
-        conn.execute("DELETE FROM usuarios WHERE id = ?", (id,))
-        conn.commit()
-        flash('Usuario eliminado correctamente', 'success')
-    else:
-        flash('No puedes eliminar a un administrador', 'danger')
-    conn.close()
-    return redirect(url_for('usuarios'))
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

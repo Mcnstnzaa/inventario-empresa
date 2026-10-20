@@ -16,7 +16,6 @@
                         <option value="Bolsos">Bolsos</option>
                         <option value="Accesorios">Accesorios</option>
                         <option value="Billeteras">Billeteras</option>
-                        <option value="Otros">Otros</option>
                     </select>
 
                     <label class="form-label text-warning">2. Selecciona el Producto</label>
@@ -28,7 +27,16 @@
                     </select>
 
                     <label class="form-label text-warning">3. Cantidad vendida</label>
-                    <input type="number" name="cantidad" class="form-control mb-4" min="1" required>
+                    <input type="number" name="cantidad" class="form-control mb-3" min="1" required>
+
+                    <!-- SELECTOR DE MÉTODO DE PAGO -->
+                    <label class="form-label text-warning">4. Método de Pago</label>
+                    <select name="metodo_pago" class="form-select mb-4" required>
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="Transferencia">Transferencia</option>
+                        <option value="Débito">Débito</option>
+                        <option value="Crédito">Crédito</option>
+                    </select>
                     
                     <button type="submit" class="btn btn-warning w-100 mb-2">Restar del Stock</button>
                     <a href="/menu" class="btn btn-outline-secondary w-100">Cancelar</a>
@@ -61,7 +69,7 @@ function filtrarProductos(tipo) {
     var opcionesFiltradas = tempDiv.querySelectorAll('option[data-categoria="' + catSeleccionada + '"]');
     
     if(opcionesFiltradas.length === 0) {
-        selectProductos.innerHTML = '<option value="" disabled selected>-- No hay productos en esta categoría --</option>';
+        selectProductos.innerHTML = '<option value="" disabled selected>-- No hay productos --</option>';
     } else {
         opcionesFiltradas.forEach(function(opcion) {
             selectProductos.appendChild(opcion.cloneNode(true));

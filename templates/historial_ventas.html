@@ -6,7 +6,6 @@
 </div>
 
 <div class="row">
-    <!-- Panel para descargar por fechas -->
     <div class="col-md-4">
         <div class="card mb-3">
             <div class="card-header text-warning">📥 Descargar Reporte por Fechas</div>
@@ -24,7 +23,6 @@
         </div>
     </div>
 
-    <!-- Lista de ventas recientes -->
     <div class="col-md-8">
         <div class="card">
             <div class="card-header">🧾 Últimas Ventas Registradas</div>
@@ -33,22 +31,20 @@
                     <thead>
                         <tr>
                             <th>Producto</th>
-                            <th>Precio</th>
-                            <th>Fecha y Pago</th>
+                            <th>Detalle (Cant. / Precio / Pago)</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for v in ventas %}
                         <tr>
                             <td>{{ v['nombre'] }}</td>
-                            <td>${{ v['precio'] }}</td>
                             <td>
                                 <span class="badge bg-secondary">{{ v['fecha_actualizacion'] }}</span>
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="3" class="text-center text-muted">No hay ventas registradas aún.</td>
+                            <td colspan="2" class="text-center text-muted">No hay ventas registradas aún.</td>
                         </tr>
                         {% endfor %}
                     </tbody>

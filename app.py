@@ -50,6 +50,14 @@ def init_db():
 
 # ================= RUTAS =================
 
+@app.route('/instalar_tablas')
+def instalar_tablas():
+    try:
+        init_db()
+        return "<h1>¡Tablas creadas con éxito!</h1><p>Ya puedes ir a la página principal y loguearte.</p>"
+    except Exception as e:
+        return f"<h1>Error:</h1><p>{str(e)}</p>"
+
 @app.route('/')
 def index():
     if 'user_id' not in session:
@@ -382,9 +390,10 @@ def descargar_ventas_fechas():
     return send_file(output, download_name=f"ventas_{fecha_inicio}_a_{fecha_fin}.xlsx", as_attachment=True)
 
 # ================= INICIALIZACIÓN =================
-# Forzamos la creación de las tablas al iniciar (para Render)
+# Forzamos la creación de las tablas al iniciar
 with app.app_context():
     init_db()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+    
